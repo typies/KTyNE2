@@ -1,132 +1,75 @@
-import { ReactNode, useState } from "react";
-import Calculator from "./Calculator";
-import EdgeworkModal from "./EdgeworkModal";
-import Alphabet from "./Alphabet";
-import { Menu, MenuItem } from "./Menu";
-import BaseConverter from "./BaseConverter";
-import TimerPopup from "./Timer";
-import CaesarCipher from "./CaesarCipher";
-import GridPopup from "./GridPopup";
-import Faq from "./Faq";
-import CustomDialog, {
-  CustomDialogButton,
-  CustomDialogTitle,
-} from "./CustomDialog";
+import { OpenManual } from "../Utils/Types";
 
-const Popups = ({
-  setEdgework,
-  setIframeCovered,
+function getManualEntries(
+  openManuals: Map<string, OpenManual> | unknown
+): Array<[string, OpenManual]> {
+  if (openManuals instanceof Map) {
+    return Array.from(openManuals.entries());
+  }
+  if (Array.isArray(openManuals)) {
+    return openManuals.filter(
+      (entry): entry is [string, OpenManual] =>
+        Array.isArray(entry) && typeof entry[0] === "string" && Boolean(entry[1])
+    );
+  }
+  if (openManuals && typeof openManuals === "object") {
+    return Object.entries(openManuals).filter(
+      (entry): entry is [string, OpenManual] => Boolean(entry[1])
+    );
+  }
+  return [];
+}
+
+const Manuals = ({
+  covered = false,
+  currentManual,
+  openManuals,
 }: {
-  setEdgework: (newVal: ReactNode) => void;
-  setIframeCovered: (newVal: boolean) => void;
+  covered: boolean;
+  currentManual: string | null;
+  openManuals: Map<string, OpenManual>;
 }) => {
-  const [edgeworkModalIsOpen, setEdgeworkModalIsOpen] =
-    useState<boolean>(false);
-  const [faqModalIsOpen, setfaqModalIsOpen] = useState<boolean>(false);
-
+  const openManualsList = getManualEntries(openManuals);
   return (
     <>
-      <div className="flex flex-wrap justify-around gap-1">
-        <HeaderButton onClick={() => setEdgeworkModalIsOpen(true)}>
-          Edgework
-        </HeaderButton>
-        <Menu text="Tools">
-          <MenuItem
-            underLineIndex={0}
-            buttonText="Alphabet"
-            setIframeCovered={setIframeCovered}
-            shortCutKey="a"
-            disableResize
-          >
-            <Alphabet />
-          </MenuItem>
-          <MenuItem
-            underLineIndex={0}
-            buttonText="Base Converter"
-            setIframeCovered={setIframeCovered}
-            shortCutKey="b"
-          >
-            <BaseConverter />
-          </MenuItem>
-          <MenuItem
-            buttonText="Caesar Cipher"
-            setIframeCovered={setIframeCovered}
-          >
-            <CaesarCipher />
-          </MenuItem>
-          <MenuItem
-            underLineIndex={0}
-            buttonText="Grid"
-            setIframeCovered={setIframeCovered}
-            shortCutKey="g"
-            disableResize
-          >
-            <GridPopup />
-          </MenuItem>
-          <MenuItem
-            underLineIndex={2}
-            buttonText="Text-Field Calc."
-            setIframeCovered={setIframeCovered}
-            shortCutKey="x"
-          >
-            <Calculator />
-          </MenuItem>
-          <MenuItem
-            underLineIndex={0}
-            buttonText="Timer"
-            setIframeCovered={setIframeCovered}
-            shortCutKey="t"
-            disableResize
-          >
-            <TimerPopup />
-          </MenuItem>
-        </Menu>
-        <HeaderButton onClick={() => setfaqModalIsOpen(true)}>FAQ</HeaderButton>
-        <EdgeworkModal
-          edgeworkModalIsOpen={edgeworkModalIsOpen}
-          setEdgeworkModalIsOpen={setEdgeworkModalIsOpen}
-          setEdgework={setEdgework}
-        />
-        <CustomDialog
-          open={faqModalIsOpen}
-          onClose={() => setfaqModalIsOpen(false)}
-        >
-          <CustomDialogTitle>Frequently Asked Questions</CustomDialogTitle>
-          <Faq />
-          <div className="text-center">
-            <CustomDialogButton
-              onClick={() => setfaqModalIsOpen(false)}
-              className="max-w-fit"
-            >
-              Close
-            </CustomDialogButton>
-          </div>
-        </CustomDialog>
+      <div
+        className={`absolute h-full w-full bg-transparent ${
+          covered ? "" : "hidden"
+        }`}
+      ></div>
+      <div
+        className={`h-full min-w-[360px] ${
+          currentManual ? "bg-white" : "bg-[url(/images/web-background.jpg)]"
+        }`}
+      >
+        {openManualsList.length > 0 &&
+          openManualsList.map(([name, manual]) => (
+            <ManualIframe
+              key={manual.id}
+              name={name}
+              manualUrl={manual.manualUrl}
+              isCurrentManual={currentManual === name}
+            />
+          ))}
       </div>
     </>
   );
 };
 
-export const HeaderButton = ({
-  children,
-  underlineFirst = false,
-  onClick,
+const ManualIframe = ({
+  manualUrl,
+  isCurrentManual,
 }: {
-  children: string;
-  underlineFirst?: boolean;
-  onClick?: () => void;
+  name: string;
+  manualUrl: string;
+  isCurrentManual: boolean;
 }) => {
   return (
-    <button
-      className="cursor-pointer text-white border-2 p-2 border-white rounded-md h-fit hover:text-gray-400 hover:border-gray-400 max-w-fit"
-      onClick={onClick}
-    >
-      <span className={`${underlineFirst ? "underline" : ""}`}>
-        {children.slice(0, 1)}
-      </span>
-      {children.slice(1)}
-    </button>
+    <iframe
+      src={manualUrl}
+      className={isCurrentManual ? "w-full h-full" : "hidden"}
+    ></iframe>
   );
 };
 
-export default Popups;
+export default Manuals;

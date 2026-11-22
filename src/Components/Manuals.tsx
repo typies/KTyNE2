@@ -1,5 +1,25 @@
 import { OpenManual } from "../Utils/Types";
 
+function getManualEntries(
+  openManuals: Map<string, OpenManual> | unknown
+): Array<[string, OpenManual]> {
+  if (openManuals instanceof Map) {
+    return Array.from(openManuals.entries());
+  }
+  if (Array.isArray(openManuals)) {
+    return openManuals.filter(
+      (entry): entry is [string, OpenManual] =>
+        Array.isArray(entry) && typeof entry[0] === "string" && Boolean(entry[1])
+    );
+  }
+  if (openManuals && typeof openManuals === "object") {
+    return Object.entries(openManuals).filter(
+      (entry): entry is [string, OpenManual] => Boolean(entry[1])
+    );
+  }
+  return [];
+}
+
 const Manuals = ({
   covered = false,
   currentManual,
@@ -9,7 +29,7 @@ const Manuals = ({
   currentManual: string | null;
   openManuals: Map<string, OpenManual>;
 }) => {
-  const openManualsList = Array.from(openManuals);
+  const openManualsList = getManualEntries(openManuals);
   return (
     <>
       <div

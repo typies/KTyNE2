@@ -1,182 +1,127 @@
-import { useRef, useState } from "react";
-import SidebarButton from "./SidebarButton";
-import { ArrowDown01, ArrowDownAZ, ArrowUp, Pin, PinOff } from "lucide-react";
-import OptionPopup from "./OptionPopup";
-import { getFilteredMods } from "../Utils/ModSearchUtils";
-import ModSearch from "./ModSearch";
+import { ReactNode, useState } from "react";
+import Popups, { HeaderButton } from "./Popups";
+import { OpenManual } from "../Utils/Types";
+import CustomDialog, {
+  CustomDialogButton,
+  CustomDialogTitle,
+} from "./CustomDialog";
 
-const localStorageFilterPrefenceRaw = localStorage.getItem(
-  "KTyNE:sidebarFilterPreference"
-);
-const localStorageFilterPrefence = localStorageFilterPrefenceRaw
-  ? JSON.parse(localStorageFilterPrefenceRaw)
-  : "";
+function toSafeEntries(
+  openManuals: Map<string, OpenManual> | unknown
+): Array<[string, OpenManual]> {
+  if (openManuals instanceof Map) {
+    return Array.from(openManuals.entries());
+  }
+  if (Array.isArray(openManuals)) {
+    return openManuals.filter(
+      (entry): entry is [string, OpenManual] =>
+        Array.isArray(entry) && typeof entry[0] === "string" && Boolean(entry[1])
+    );
+  }
+  if (openManuals && typeof openManuals === "object") {
+    return Object.entries(openManuals).filter(
+      (entry): entry is [string, OpenManual] => Boolean(entry[1])
+    );
+  }
+  return [];
+}
 
-const Sidebar = ({
-  handleOpenMod,
+const Header = ({
   setIframeCovered,
   openManuals,
+  setOpenManuals,
   currentManual,
-  handleModChange,
-  handleModClose,
-  closeAllManuals,
-  resetAllManuals,
+  setCurrentManual,
 }: {
-  handleOpenMod: (
-    modName: string,
-    manualUrl: string,
-    preventChange?: boolean
-  ) => void;
   setIframeCovered: (bool: boolean) => void;
-  openManuals: string[];
+  openManuals: Map<string, OpenManual>;
+  setOpenManuals: (next: Map<string, OpenManual>) => void;
   currentManual: string | null;
-  handleModChange: (modName: string, isCurrent: boolean) => void;
-  handleModClose: (modName: string, isCurrent: boolean) => void;
-  closeAllManuals: () => void;
-  resetAllManuals: () => void;
+  setCurrentManual: (name: string | null) => void;
 }) => {
-  const [filter, setFilter] = useState<string>("");
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-  const [sidebarTempOpen, setSidebarTempOpen] = useState<boolean>(false);
-  const [closingAll, setClosingAll] = useState<boolean>(false);
-  const [resetingAll, setResetingAll] = useState<boolean>(false);
-  const [filterAlpha, setFilterAlpha] = useState<boolean>(
-    localStorageFilterPrefence
-  );
+  const [edgework, setEdgework] = useState<ReactNode>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
-  const handleFilterChange = (newVal: boolean) => {
-    localStorage.setItem(
-      "KTyNE:sidebarFilterPreference",
-      JSON.stringify(newVal)
-    );
-    setFilterAlpha(newVal);
-  };
-
-  const manualList = getFilteredMods(openManuals, filter, filterAlpha);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  const entries = toSafeEntries(openManuals);
 
   return (
-    <div
-      className={`flex flex-col flex-1 relative transition-all duration-250 ease-in-out
-        ${sidebarOpen || sidebarTempOpen ? "min-w-52" : "min-w-10"}
-        `}
-      onMouseMove={(e) => {
-        // onMouseMove and boundingBox used for popups
-        // (since they're considered children of this div)
-        const sidebarBox = sidebarRef.current?.getBoundingClientRect();
-        if (sidebarOpen || !sidebarBox) return;
-        if (e.clientX > sidebarBox?.width || e.clientY < sidebarBox?.y) {
-          setSidebarTempOpen(false);
-        } else {
-          setSidebarTempOpen(true);
-        }
-      }}
-      // onMouseEnter handled in onMouseMove
-      onMouseLeave={() => setSidebarTempOpen(false)}
-      ref={sidebarRef}
-    >
-      <ModSearch
-        handleOpenMod={handleOpenMod}
-        setIframeCovered={setIframeCovered}
-        openManuals={openManuals}
-      />
-      <div
-        className={`hover:text-gray-400 cursor-pointer absolute top-2.5 right-2.5
-          transition-all delay-100 ${
-            sidebarOpen || sidebarTempOpen ? "" : "opacity-0"
-          }`}
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-      >
-        {sidebarOpen ? <Pin /> : <PinOff />}
-      </div>
+    <header className="bg-jet flex items-center p-2 gap-2 flex-wrap">
+      <Popups setEdgework={setEdgework} setIframeCovered={setIframeCovered} />
+      <HeaderButton onClick={() => setEditOpen(true)}>Edit Manuals</HeaderButton>
+      <div className="ml-auto">{edgework}</div>
 
-      <div
-        className={`flex-1 m-2 mt-0 flex flex-col gap-2 overflow-hidden 
-          transition-all delay-100 ${
-            sidebarOpen || sidebarTempOpen ? "" : "opacity-0"
-          }`}
-      >
-        <ul className="flex-1 overflow-scroll no-scrollbar">
-          {manualList && manualList.length > 0 ? (
-            manualList.map((modName) => (
-              <SidebarButton
-                key={modName}
-                modName={modName}
-                isCurrentManual={currentManual === modName}
-                handleModChange={handleModChange}
-                handleModClose={handleModClose}
-              />
-            ))
-          ) : (
-            <div className="text-center">
-              <ArrowUp className="ml-auto mr-auto" />
-              <p>Open a manual to get started</p>
+      <CustomDialog open={editOpen} onClose={() => setEditOpen(false)}>
+        <CustomDialogTitle>Edit Manuals</CustomDialogTitle>
+        <div className="space-y-2 min-w-[300px] max-h-[60vh] overflow-y-auto mb-4">
+          {entries.map(([name, manual], idx, arr) => (
+            <div
+              key={manual.id}
+              className="flex items-center justify-between gap-2 border p-2 rounded"
+            >
+              <span className="truncate font-bold">{name}</span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => {
+                    const list = toSafeEntries(openManuals);
+                    if (idx <= 0 || idx >= list.length) return;
+                    [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
+                    setOpenManuals(new Map(list));
+                  }}
+                  className="px-2 py-1 border rounded disabled:opacity-30 cursor-pointer"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === arr.length - 1}
+                  onClick={() => {
+                    const list = toSafeEntries(openManuals);
+                    if (idx < 0 || idx >= list.length - 1) return;
+                    [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
+                    setOpenManuals(new Map(list));
+                  }}
+                  className="px-2 py-1 border rounded disabled:opacity-30 cursor-pointer"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextName = window.prompt("Rename manual tab:", name);
+                    if (!nextName || !nextName.trim() || nextName.trim() === name)
+                      return;
+                    const trimmed = nextName.trim();
+                    const nextMap = new Map<string, OpenManual>();
+                    for (const [k, v] of toSafeEntries(openManuals)) {
+                      nextMap.set(k === name ? trimmed : k, v);
+                    }
+                    setOpenManuals(nextMap);
+                    if (currentManual === name) setCurrentManual(trimmed);
+                  }}
+                  className="px-2 py-1 border rounded cursor-pointer"
+                >
+                  Rename
+                </button>
+              </div>
             </div>
-          )}
-        </ul>
-        <div className="flex mt-auto">
-          <input
-            type="text"
-            value={filter}
-            className={`bg-white rounded-md pl-1 border-2 w-0 flex-1`}
-            id="open-manual-filter"
-            placeholder="Filter Opened"
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          {filterAlpha ? (
-            <ArrowDownAZ
-              className="cursor-pointer hover:text-gray-500"
-              onClick={() => handleFilterChange(false)}
-            />
-          ) : (
-            <ArrowDown01
-              className="cursor-pointer hover:text-gray-500"
-              onClick={() => handleFilterChange(true)}
-            />
+          ))}
+          {entries.length === 0 && (
+            <p className="text-center text-gray-500">No manuals open.</p>
           )}
         </div>
-        <div className={`flex justify-between`}>
-          {openManuals.length > 0 && (
-            <button
-              className="heartbeat whitespace-nowrap"
-              onClick={() => setClosingAll(true)}
-            >
-              Close all
-            </button>
-          )}
-
-          {openManuals.length > 0 && (
-            <button
-              className="heartbeat whitespace-nowrap"
-              onClick={() => setResetingAll(true)}
-            >
-              Reset all
-            </button>
-          )}
+        <div className="text-center">
+          <CustomDialogButton
+            onClick={() => setEditOpen(false)}
+            className="max-w-fit"
+          >
+            Close
+          </CustomDialogButton>
         </div>
-      </div>
-      <>
-        <OptionPopup
-          isOpen={closingAll}
-          popupMessage="Are you sure you want to close all open manuals?"
-          closeCallback={() => setClosingAll(false)}
-          options={[
-            { text: "Cancel" },
-            { text: "Yes, I'm sure", callback: closeAllManuals },
-          ]}
-        />
-        <OptionPopup
-          isOpen={resetingAll}
-          popupMessage="Are you sure you want to reset all open manuals?"
-          closeCallback={() => setResetingAll(false)}
-          options={[
-            { text: "Cancel" },
-            { text: "Yes, I'm sure", callback: resetAllManuals },
-          ]}
-        />
-      </>
-    </div>
+      </CustomDialog>
+    </header>
   );
 };
 
-export default Sidebar;
+export default Header;

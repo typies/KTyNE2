@@ -1,6 +1,5 @@
-type OpenManual = {
+export interface OpenManual {
   id: string;
   manualUrl: string;
-};
-
-export type { OpenManual };
+  originalName?: string;
+}
